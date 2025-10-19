@@ -1,3 +1,21 @@
+之前用的有道哪个截图翻译,它可以翻译后覆盖道原文的地方觉得挺方便的,后来好像复制原文需要收费,就自己弄了个自己用的,后来感觉挺方便的就开源了吧
+
+# 功能介绍
+  ## 1:截图翻译覆盖,按ctrl+alt+d进行截图翻译,翻译后界面如下,可以直接按O复制原文,C复制译文,R覆盖原文,和A AI学习
+  <img width="1380" height="825" alt="image" src="https://github.com/user-attachments/assets/fc69c85e-cb84-447b-a0ce-4cef7d16ca96" />
+  ### 覆盖原文效果如下:
+  <img width="1498" height="796" alt="image" src="https://github.com/user-attachments/assets/c6473ee3-d68d-449d-8066-4c96cf953abd" />
+  ### 这里有多个翻译引擎可以自己配置:
+  <img width="598" height="828" alt="image" src="https://github.com/user-attachments/assets/695e5e26-1190-49ff-9227-c1663803bb8c" />
+
+  ### ollama下还可以自定义翻译情景,比如这样:
+  <img width="611" height="915" alt="image" src="https://github.com/user-attachments/assets/9ad9342b-d6fe-4c4c-9788-c05b3654b7b6" />
+
+ ## 2:AI学习功能,这是我自己觉得方便记忆弄的,此功能在AI截图翻译直接按A可以自动跳过去,或者直接按ctrl+alt+x,这个是调用的本地的ollama的"gpt-oss:120b-cloud",效果如下:
+   <img width="785" height="722" alt="image" src="https://github.com/user-attachments/assets/74055220-51ab-45fa-8018-a92c29920f19" />
+   <img width="778" height="727" alt="image" src="https://github.com/user-attachments/assets/424955b9-0d37-4eff-a7c1-8ba96ed8d60f" />
+   <img width="780" height="722" alt="image" src="https://github.com/user-attachments/assets/f6a9b8a3-4b49-4828-a737-7501d366e81e" />
+
 # OCR翻译器
 
 一个用于截图翻译的桌面工具，使用PaddleOCR进行文字识别，并通过多种翻译引擎提供翻译服务。
