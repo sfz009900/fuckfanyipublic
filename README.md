@@ -18,6 +18,9 @@
    <img width="778" height="727" alt="image" src="https://github.com/user-attachments/assets/424955b9-0d37-4eff-a7c1-8ba96ed8d60f" />
    <img width="780" height="722" alt="image" src="https://github.com/user-attachments/assets/f6a9b8a3-4b49-4828-a737-7501d366e81e" />
 
+ ## 支持高亮匹配显示:
+ <img width="777" height="723" alt="image" src="https://github.com/user-attachments/assets/23146b31-d70d-4631-82e4-89f61e55ef40" />
+
 # OCR翻译器
 
 一个用于截图翻译的桌面工具，使用PaddleOCR进行文字识别，并通过多种翻译引擎提供翻译服务。
