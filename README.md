@@ -6,6 +6,7 @@
 
   ### 覆盖原文效果如下:
   <img width="1380" height="915" alt="image" src="https://github.com/user-attachments/assets/799c89db-5abc-4ecc-87b6-1e979607d85f" />
+  <img width="1917" height="996" alt="image" src="https://github.com/user-attachments/assets/983b276b-743e-4410-bea8-0cbdcfdf4c08" />
 
   ### 这里有多个翻译引擎可以自己配置:
   <img width="598" height="828" alt="image" src="https://github.com/user-attachments/assets/695e5e26-1190-49ff-9227-c1663803bb8c" />
