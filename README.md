@@ -4,7 +4,8 @@
   ## 1:截图翻译覆盖,按ctrl+alt+d进行截图翻译,翻译后界面如下,可以直接按O复制原文,C复制译文,R覆盖原文,和A AI学习
   <img width="1380" height="825" alt="image" src="https://github.com/user-attachments/assets/fc69c85e-cb84-447b-a0ce-4cef7d16ca96" />
   ### 覆盖原文效果如下:
-  <img width="1498" height="796" alt="image" src="https://github.com/user-attachments/assets/c6473ee3-d68d-449d-8066-4c96cf953abd" />
+  <img width="1380" height="915" alt="image" src="https://github.com/user-attachments/assets/799c89db-5abc-4ecc-87b6-1e979607d85f" />
+
   ### 这里有多个翻译引擎可以自己配置:
   <img width="598" height="828" alt="image" src="https://github.com/user-attachments/assets/695e5e26-1190-49ff-9227-c1663803bb8c" />
 
