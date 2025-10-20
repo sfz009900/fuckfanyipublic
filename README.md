@@ -42,7 +42,7 @@
 
 ### 环境要求
 
-- Python 3.7+
+- 我用的Python 3.10.5
 - Windows操作系统
 
 ### 安装步骤
@@ -51,7 +51,10 @@
 2. 运行安装脚本安装依赖
 
 ```
-python install_dependencies.py
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r .\requirements.txt
+python .\main.py
 ```
 
 3. 安装完成后，运行主程序
