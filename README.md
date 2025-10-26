@@ -1,3 +1,8 @@
+## 新增配对学习和Cloze 爆破、影子跟读（TTS）
+<img width="538" height="676" alt="image" src="https://github.com/user-attachments/assets/9c28b14c-fcde-49e6-a53f-712f9bdabc78" />
+<img width="659" height="504" alt="image" src="https://github.com/user-attachments/assets/aeb56263-efcf-495d-959e-53e96778ea05" />
+<img width="661" height="416" alt="image" src="https://github.com/user-attachments/assets/09e5d2ba-33b9-46f6-b9f5-06dcc23a8a6d" />
+
 ## 之前用的有道哪个截图翻译,它可以翻译后覆盖道原文的地方觉得挺方便的,后来好像复制原文需要收费,就自己弄了个自己用的,后来感觉挺方便的就开源了吧
 
 # 功能介绍
