@@ -47,16 +47,19 @@ class SettingsDialog(QDialog):
         self.general_tab = QWidget()
         self.ocr_tab = QWidget()  # 直接创建实例变量
         self.ui_tab = QWidget()
+        self.learning_tab = QWidget()
         
         # 初始化各个选项卡
         self.init_general_tab()
         self.init_ocr_tab()  # 改为无返回值的初始化方法
         self.init_ui_tab()
+        self.init_learning_tab()
         
         # 添加选项卡
         self.tab_widget.addTab(self.general_tab, "常规")
         self.tab_widget.addTab(self.ocr_tab, "OCR")
         self.tab_widget.addTab(self.ui_tab, "界面")
+        self.tab_widget.addTab(self.learning_tab, "学习")
         
         # 将选项卡添加到容器布局
         container_layout.addWidget(self.tab_widget)
@@ -662,6 +665,19 @@ class SettingsDialog(QDialog):
                 'animation_duration': self.animation_duration_spinbox.value()
             }
         }
+
+        # 学习设置
+        settings['LEARNING'] = {
+            'enable_learning': self.learning_enable_check.isChecked(),
+            'auto_popup_after_translate': self.learning_auto_check.isChecked(),
+            'auto_popup_mode': self.learning_popup_mode.currentText(),
+            'auto_popup_delay_ms': self.learning_delay_spin.value(),
+            'round_item_count': self.learning_count_spin.value(),
+            'round_seconds': self.learning_secs_spin.value(),
+            'game_font_size': self.learning_font_spin.value(),
+            'game_high_contrast': self.learning_hc_check.isChecked(),
+            'current_only': self.learning_current_only.isChecked(),
+        }
         
         # 添加视觉样式设置
         settings['VISUAL_STYLE'] = {
@@ -740,3 +756,62 @@ class SettingsDialog(QDialog):
         if reply == QMessageBox.Yes:
             config.remove_prompt_preset(name)
             self.load_prompt_presets()
+
+    # ———————————————— 新增：学习设置 Tab ————————————————
+    def init_learning_tab(self):
+        layout = QVBoxLayout(self.learning_tab)
+        group = QGroupBox("学习与游戏")
+        form = QFormLayout()
+
+        self.learning_enable_check = QCheckBox()
+        self.learning_enable_check.setChecked(bool(config.get('LEARNING', 'enable_learning', True)))
+        form.addRow("启用学习模块:", self.learning_enable_check)
+
+        self.learning_auto_check = QCheckBox()
+        self.learning_auto_check.setChecked(bool(config.get('LEARNING', 'auto_popup_after_translate', True)))
+        form.addRow("翻译后自动弹一局:", self.learning_auto_check)
+
+        self.learning_delay_spin = QSpinBox()
+        self.learning_delay_spin.setRange(0, 10000)
+        self.learning_delay_spin.setValue(int(config.get('LEARNING', 'auto_popup_delay_ms', 1500)))
+        self.learning_delay_spin.setSuffix(" ms")
+        form.addRow("自动弹出延时:", self.learning_delay_spin)
+
+        self.learning_count_spin = QSpinBox()
+        self.learning_count_spin.setRange(3, 8)
+        self.learning_count_spin.setValue(int(config.get('LEARNING', 'round_item_count', 5)))
+        form.addRow("每局题目数:", self.learning_count_spin)
+
+        self.learning_secs_spin = QSpinBox()
+        self.learning_secs_spin.setRange(10, 60)
+        self.learning_secs_spin.setValue(int(config.get('LEARNING', 'round_seconds', 25)))
+        self.learning_secs_spin.setSuffix(" s")
+        form.addRow("每局时长:", self.learning_secs_spin)
+
+        # 游戏字体大小
+        self.learning_font_spin = QSpinBox()
+        self.learning_font_spin.setRange(12, 24)
+        self.learning_font_spin.setValue(int(config.get('LEARNING', 'game_font_size', 16)))
+        self.learning_font_spin.setSuffix(" px")
+        form.addRow("游戏字体大小:", self.learning_font_spin)
+
+        # 高对比度主题
+        self.learning_hc_check = QCheckBox()
+        self.learning_hc_check.setChecked(bool(config.get('LEARNING', 'game_high_contrast', True)))
+        form.addRow("高对比度主题:", self.learning_hc_check)
+
+        # 翻译后行为（自动/提示气泡/关闭）
+        from PyQt5.QtWidgets import QComboBox
+        self.learning_popup_mode = QComboBox()
+        self.learning_popup_mode.addItems(["auto", "hint", "off"])
+        self.learning_popup_mode.setCurrentText(str(config.get('LEARNING', 'auto_popup_mode', 'auto')))
+        form.addRow("翻译后行为:", self.learning_popup_mode)
+
+        # 仅当前截图出题
+        self.learning_current_only = QCheckBox()
+        self.learning_current_only.setChecked(bool(config.get('LEARNING', 'current_only', True)))
+        form.addRow("仅当前截图出题:", self.learning_current_only)
+
+        group.setLayout(form)
+        layout.addWidget(group)
+        layout.addStretch()

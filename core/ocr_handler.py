@@ -21,13 +21,13 @@ except ImportError:
     SKLEARN_AVAILABLE = False
     print("警告: sklearn未安装，将使用简化的分段算法")
 
-# 添加PaddleOCR导入，使用try-except防止导入错误
+# 添加PaddleOCR导入，使用try-except防止导入错误（输出真实异常以便排查打包问题）
 try:
-    from paddleocr import PaddleOCR
+    from paddleocr import PaddleOCR  # type: ignore
     PADDLEOCR_AVAILABLE = True
-except ImportError:
+except Exception as e:  # ImportError 或其依赖的导入失败都会到这里
     PADDLEOCR_AVAILABLE = False
-    print("警告: PaddleOCR未安装，OCR功能将不可用")
+    print(f"警告: PaddleOCR导入失败（可能未安装或缺少依赖）: {e}")
 
 class OCRHandler:
     def __init__(self):

@@ -20,11 +20,16 @@ from .translator import Translator
 from .history_manager import HistoryManager
 from ui.image_display_window import ImageDisplayWindow
 from ui.translation_window import TranslationWindow
+from ui.game_overlay import GameOverlay
+from ui.game_cloze import GameCloze
+from ui.game_shadow import GameShadow
+from ui.hint_bubble import HintBubble
 from ui.history_dialog import HistoryDialog
 from ui.settings_dialog import SettingsDialog
 from ui.about_dialog import AboutDialog
 from ui.ai_study_dialog import AIStudyDialog
 from config_manager import config
+from learning.manager import LearningManager
 
 class OCRTranslator:
     def __init__(self):
@@ -44,6 +49,13 @@ class OCRTranslator:
         self.history_manager = HistoryManager(
             os.path.join(base_path, "history", "translation_history.json")
         )
+        # 保存项目路径供学习模块等复用
+        self.base_path = base_path
+        # 学习管理器（轻量SRS + 提取）
+        try:
+            self.learning_manager = LearningManager(self.base_path, translate_fn=lambda t: (self.translator.translate_text(t) or ""))
+        except Exception:
+            self.learning_manager = None
         
         # Initialize state variables
         self.selection_start = None
@@ -131,11 +143,15 @@ class OCRTranslator:
         self.signals.update_history.connect(self.history_manager.save_history)
         self.signals.show_error.connect(self.show_error_message)
         self.signals.show_ai_study.connect(self._open_ai_study)
+        self.signals.show_game.connect(self._open_game_internal)
         
         self.translation_window = None
         self.image_display_window = None
         # 单例 AI学习 窗口引用
         self.ai_study_dialog = None
+        # 单例 游戏 窗口引用
+        self.game_dialog = None
+        self.game_dialog2 = None  # for cloze/shadow chaining
     
     def register_hotkey(self):
         """Register the hotkey to start the translation process"""
@@ -414,6 +430,46 @@ class OCRTranslator:
                 min(screen_height - window_pos_y - 50, 600),  # 窗口高度
                 original_coords   # 原始选择区域坐标
             )
+            # 学习模块：后台提取候选并入库，可选自动弹出一局
+            try:
+                if self.learning_manager:
+                    import time as _t
+                    capture_id = str(int(_t.time() * 1000))
+                    self.learning_manager.begin_capture(capture_id)
+                    # 立即缓存本次截图的原文与译文，确保学习游戏能即时展示
+                    try:
+                        self.learning_manager._capture_texts[capture_id] = source_text or ''
+                        self.learning_manager._capture_translations[capture_id] = translated_text or ''
+                    except Exception:
+                        pass
+                    context = {
+                        'bbox': (x1, y1, sel_width, sel_height),
+                        'capture_id': capture_id,
+                    }
+                    # use configurable extract_top_k for richer candidates
+                    top_k = int(config.get('LEARNING', 'extract_top_k', 12))
+                    self.learning_manager.ingest(source_text, translated_text, context=context, top_k=top_k, async_mode=True)
+                    if config.get('LEARNING', 'enable_learning', True) and config.get('LEARNING', 'auto_popup_after_translate', True):
+                        mode = str(config.get('LEARNING', 'auto_popup_mode', 'auto')).lower()
+                        delay = int(config.get('LEARNING', 'auto_popup_delay_ms', 1500))
+                        from PyQt5.QtCore import QTimer
+                        if mode == 'hint':
+                            def show_hint():
+                                try:
+                                    msg = "有可学词汇，来一局 15 秒？"
+                                    bub = HintBubble(msg, on_start=self._open_game_internal, parent=self.translation_window, duration_ms=5000)
+                                    # position near translation window
+                                    if self.translation_window:
+                                        g = self.translation_window.geometry()
+                                        bub.move(max(0, g.x()+g.width()-280), max(0, g.y()+30))
+                                    bub.show()
+                                except Exception:
+                                    pass
+                            QTimer.singleShot(max(0, delay), show_hint)
+                        elif mode == 'auto':
+                            QTimer.singleShot(max(0, delay), self._open_game_internal)
+            except Exception:
+                pass
         except Exception as e:
             print(f"显示翻译结果时出错: {e}")
     
@@ -1330,6 +1386,171 @@ class OCRTranslator:
             self.signals.show_ai_study.emit()
         except Exception as e:
             print(f"派发AI学习窗口信号失败: {e}")
+
+    # ————————— 学习游戏 —————————
+    def show_game(self):
+        try:
+            self.signals.show_game.emit()
+        except Exception:
+            self._open_game_internal()
+
+    def _open_game_internal(self):
+        try:
+            if not self.learning_manager:
+                return
+            if self.game_dialog:
+                try:
+                    # If an old dialog is still visible, just focus it; otherwise drop it
+                    if hasattr(self.game_dialog, 'isVisible') and self.game_dialog.isVisible():
+                        self.game_dialog.raise_(); self.game_dialog.activateWindow();
+                        return
+                    else:
+                        try:
+                            self.game_dialog.close()
+                        except Exception:
+                            pass
+                        self.game_dialog = None
+                except Exception:
+                    self.game_dialog = None
+            # gather due items
+            n = int(config.get('LEARNING', 'round_item_count', 5))
+            secs = int(config.get('LEARNING', 'round_seconds', 25))
+            font_px = int(config.get('LEARNING', 'game_font_size', 16))
+            high_contrast = bool(config.get('LEARNING', 'game_high_contrast', True))
+            current_only = bool(config.get('LEARNING', 'current_only', True))
+            # attempt with retries to ensure at least min items when using current_only
+            min_items = int(config.get('LEARNING', 'popup_min_items', 3))
+            retry_ms = int(config.get('LEARNING', 'popup_retry_ms', 400))
+            max_retries = int(config.get('LEARNING', 'popup_max_retries', 5))
+
+            from PyQt5.QtCore import QTimer
+            state = {'tries': 0}
+
+            def try_open():
+                state['tries'] += 1
+                local_items = self.learning_manager.prepare_game_items(limit=n, current_only=current_only)
+                if len(local_items) >= min_items or state['tries'] >= max_retries or not current_only:
+                    if not local_items:
+                        return
+                    def on_finish(results):
+                        for r in results:
+                            self.learning_manager.review(r['id'], r['grade'])
+                    # Try to provide full capture texts to overlay for display
+                    cap_id = None
+                    try:
+                        for c in (local_items[0].get('contexts') or []):
+                            cid = c.get('capture_id')
+                            if cid:
+                                cap_id = str(cid)
+                                break
+                    except Exception:
+                        cap_id = None
+                    # Fallback: use latest capture id if context didn't carry it
+                    if not cap_id:
+                        try:
+                            cap_id = getattr(self.learning_manager, '_latest_capture_id', None) or None
+                        except Exception:
+                            cap_id = None
+                    src_full = ''
+                    tgt_full = ''
+                    try:
+                        if cap_id and self.learning_manager:
+                            src_full = self.learning_manager._capture_texts.get(cap_id, '')
+                            tgt_full = getattr(self.learning_manager, '_capture_translations', {}).get(cap_id, '')
+                    except Exception:
+                        pass
+                    # Provide AI translate fn so overlay can translate full 原文 with AI
+                    ai_fn = None
+                    try:
+                        ai_fn = getattr(self.learning_manager, 'translate_fn', None)
+                    except Exception:
+                        ai_fn = None
+                    self.game_dialog = GameOverlay(
+                        local_items,
+                        on_finish=on_finish,
+                        round_seconds=secs,
+                        parent=self.translation_window,
+                        font_px=font_px,
+                        high_contrast=high_contrast,
+                        capture_source_full=src_full,
+                        capture_translation_full=tgt_full,
+                        ai_translate_fn=ai_fn if callable(ai_fn) else None,
+                    )
+                    try:
+                        self.game_dialog.finished.connect(lambda _res: self._on_game_closed())
+                        self.game_dialog.destroyed.connect(lambda *_: self._on_game_closed())
+                    except Exception:
+                        pass
+                    self.game_dialog.show(); self.game_dialog.raise_(); self.game_dialog.activateWindow()
+                else:
+                    QTimer.singleShot(max(50, retry_ms), try_open)
+
+            try_open()
+        except Exception as e:
+            print(f"打开学习游戏失败: {e}")
+
+    def _on_game_closed(self):
+        try:
+            self.game_dialog = None
+        except Exception:
+            pass
+
+    # ————————— Additional games —————————
+    def show_game_cloze(self):
+        try:
+            if not self.learning_manager:
+                return
+            n = max(3, int(config.get('LEARNING', 'round_item_count', 5)))
+            font_px = int(config.get('LEARNING', 'game_font_size', 16))
+            per_item_secs = int(config.get('LEARNING', 'round_seconds', 15))
+            items = self.learning_manager.prepare_game_items(limit=n, current_only=bool(config.get('LEARNING', 'current_only', True)))
+            if not items:
+                return
+            def on_finish(results):
+                for r in results:
+                    self.learning_manager.review(r['id'], r['grade'])
+            self.game_dialog2 = GameCloze(items, on_finish=on_finish, rounds=min(3, len(items)), parent=self.translation_window, font_px=font_px, per_item_seconds=per_item_secs)
+            self.game_dialog2.show(); self.game_dialog2.raise_(); self.game_dialog2.activateWindow()
+        except Exception as e:
+            print(f"打开Cloze失败: {e}")
+
+    def show_game_shadow(self):
+        try:
+            if not self.learning_manager:
+                return
+            n = max(3, int(config.get('LEARNING', 'round_item_count', 5)))
+            font_px = int(config.get('LEARNING', 'game_font_size', 16))
+            per_item_secs = int(config.get('LEARNING', 'round_seconds', 15))
+            items = self.learning_manager.prepare_game_items(limit=n, current_only=bool(config.get('LEARNING', 'current_only', True)))
+            if not items:
+                return
+            def on_finish(results):
+                for r in results:
+                    self.learning_manager.review(r['id'], r['grade'])
+            self.game_dialog2 = GameShadow(items, on_finish=on_finish, rounds=min(3, len(items)), parent=self.translation_window, font_px=font_px, per_item_seconds=per_item_secs)
+            self.game_dialog2.show(); self.game_dialog2.raise_(); self.game_dialog2.activateWindow()
+        except Exception as e:
+            print(f"打开影子跟读失败: {e}")
+
+    def start_daily_mission(self):
+        """Run a short sequence of games (~3 minutes)"""
+        try:
+            seq = [self._open_game_internal, self.show_game_cloze, self.show_game_shadow]
+            if not self.learning_manager:
+                return
+            from PyQt5.QtCore import QTimer
+            def run_next(i=0):
+                if i >= len(seq):
+                    return
+                try:
+                    seq[i]()
+                except Exception:
+                    pass
+                # chain next after 50 seconds per round
+                QTimer.singleShot(50000, lambda: run_next(i+1))
+            run_next(0)
+        except Exception as e:
+            print(f"每日任务启动失败: {e}")
 
     def show_ai_study_with_text(self, initial_text: str, auto_start: bool = True):
         """从UI线程或其他线程请求显示 AI学习 窗口，并填充文本。"""

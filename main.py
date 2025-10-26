@@ -90,6 +90,25 @@ def main():
     ai_study_action.triggered.connect(translator.show_ai_study)
     menu.addAction(ai_study_action)
 
+    # 学习游戏：Match / Cloze / Shadow
+    game_action = QAction("开始学习游戏 · 配对(15秒)")
+    game_action.triggered.connect(translator.show_game)
+    menu.addAction(game_action)
+
+    cloze_action = QAction("开始 Cloze 爆破")
+    cloze_action.triggered.connect(translator.show_game_cloze)
+    menu.addAction(cloze_action)
+
+    shadow_action = QAction("开始 影子跟读")
+    shadow_action.triggered.connect(translator.show_game_shadow)
+    menu.addAction(shadow_action)
+
+    daily_action = QAction("每日 3 分钟任务")
+    daily_action.triggered.connect(translator.start_daily_mission)
+    menu.addAction(daily_action)
+
+    # （已在上方添加各游戏入口）
+
     # 添加设置动作
     settings_action = QAction("设置")
     settings_action.triggered.connect(translator.show_settings)
@@ -125,6 +144,22 @@ def main():
     # 设置托盘菜单
     tray_icon.setContextMenu(menu)
     tray_icon.show()
+
+    # 到期提醒：每隔 20 分钟提示一次（仅当有到期且未显示窗口）
+    def due_check():
+        try:
+            lm = getattr(translator, 'learning_manager', None)
+            if not lm:
+                return
+            due = len(lm.due_items(limit=3))
+            if due:
+                tray_icon.showMessage("学习提醒", f"有 {due} 个到期项目，来一局 15 秒？", QSystemTrayIcon.Information, 4000)
+        except Exception:
+            pass
+
+    due_timer = QTimer()
+    due_timer.timeout.connect(due_check)
+    due_timer.start(20 * 60 * 1000)
     
     # 注册全局热键（仅Windows支持）
     if platform.system() != 'Windows':

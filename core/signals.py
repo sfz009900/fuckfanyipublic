@@ -7,6 +7,8 @@ class TranslationSignals(QObject):
     update_history = pyqtSignal()
     show_error = pyqtSignal(str, str)
     show_ai_study = pyqtSignal()
+    # Fire-and-forget signal to open a quick learning game (uses app thread)
+    show_game = pyqtSignal()
 
 # OpenCV constants
 WINDOW_NORMAL = cv2.WINDOW_NORMAL
