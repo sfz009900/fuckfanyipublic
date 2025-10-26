@@ -21,3 +21,4 @@ build/
 *.pdmodel.info
 *.pdparams
 *.pdparams.info
+*.ini
